@@ -12,11 +12,9 @@ logger = logging.getLogger(__name__)
 
 import os
 
-# Constants
 TOPIC_NAME = "traffic-events"
 BOOTSTRAP_SERVERS = os.getenv('BOOTSTRAP_SERVERS', 'localhost:9092').split(',')
 
-# Enriched sensor list to meet assignment requirements
 SENSOR_LOCATIONS = [
     {"sensor_id": "S-001", "road_id": "R-001", "road_type": "autoroute", "zone": "Secteur-Nord", "lat": 48.8566, "lon": 2.3522},
     {"sensor_id": "S-002", "road_id": "R-002", "road_type": "avenue", "zone": "Secteur-Centre", "lat": 48.8606, "lon": 2.3376},
@@ -29,17 +27,14 @@ def get_traffic_density():
     """Returns a multiplier (0.1 to 1.0) based on time of day to simulate peak hours."""
     hour = datetime.datetime.now().hour
     if 7 <= hour <= 9 or 17 <= hour <= 19:
-        return 0.9 # Peak
+        return 0.9 
     elif 10 <= hour <= 16:
-        return 0.6 # Normal day
+        return 0.6
     else:
-        return 0.2 # Night
+        return 0.2
 
 def generate_event(sensor):
     traffic_factor = get_traffic_density()
-    
-    # Values generation
-    # Peak hour = slower speeds + more vehicles.
     if traffic_factor > 0.8:
         speed = random.normalvariate(20, 10) # Congestion
         vehicle_count = random.randint(50, 150)
@@ -59,7 +54,7 @@ def generate_event(sensor):
         "average_speed": round(speed, 2),
         "occupancy_rate": round(occupancy, 2),
         "event_time": datetime.datetime.now().isoformat(),
-        "location": {"lat": sensor["lat"], "lon": sensor["lon"]} # Added for Viz
+        "location": {"lat": sensor["lat"], "lon": sensor["lon"]} 
     }
 
 def main():
@@ -84,7 +79,6 @@ def main():
             for sensor in SENSOR_LOCATIONS:
                 event = generate_event(sensor)
                 producer.send(TOPIC_NAME, event)
-                # logger.info(f"Sent: {event}") # Uncomment to see logs
             
             time.sleep(1 / args.rate)
             

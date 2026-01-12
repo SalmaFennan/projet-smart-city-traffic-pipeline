@@ -1,7 +1,7 @@
+version: '3.8'
+
 services:
-  # ----------------------------
-  # KAFKA (Message Broker)
-  # ----------------------------
+
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.0
     container_name: zookeeper
@@ -31,9 +31,6 @@ services:
     networks:
       - bigdata-net
 
-  # ----------------------------
-  # HDFS (Data Lake)
-  # ----------------------------
   namenode:
     image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
     container_name: namenode
@@ -63,9 +60,6 @@ services:
     networks:
       - bigdata-net
 
-  # ----------------------------
-  # SPARK (Processing)
-  # ----------------------------
   spark-master:
     image: apache/spark:latest
     container_name: spark-master
@@ -76,6 +70,7 @@ services:
       - "7077:7077"
     volumes:
       - ./spark:/opt/spark-apps
+      - ./postgresql-42.2.18.jar:/opt/spark/jars/postgresql-42.2.18.jar
     networks:
       - bigdata-net
 
@@ -90,12 +85,10 @@ services:
       - SPARK_WORKER_MEMORY=1g
     volumes:
       - ./spark:/opt/spark-apps
+      - ./postgresql-42.2.18.jar:/opt/spark/jars/postgresql-42.2.18.jar
     networks:
       - bigdata-net
 
-  # ----------------------------
-  # AIRFLOW (Orchestration)
-  # ----------------------------
   postgres:
     image: postgres:13
     container_name: postgres
@@ -103,50 +96,8 @@ services:
       - POSTGRES_USER=airflow
       - POSTGRES_PASSWORD=airflow
       - POSTGRES_DB=airflow
-    networks:
-      - bigdata-net
-
-  airflow-webserver:
-    image: apache/airflow:2.6.0
-    container_name: airflow-webserver
-    user: "0:0" # Run as root to access docker socket
-    depends_on:
-      - postgres
-    environment:
-      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
-      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
-      - AIRFLOW__CORE__FERNET_KEY=46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho=
-      - AIRFLOW__CORE__LOAD_EXAMPLES=False
-      - AIRFLOW_ADMIN_USER=admin
-      - AIRFLOW_ADMIN_PASSWORD=admin
-      - _PIP_ADDITIONAL_REQUIREMENTS=apache-airflow-providers-apache-spark
-    volumes:
-      - ./airflow/dags:/opt/airflow/dags
-      - ./spark:/opt/spark-apps
-      - /var/run/docker.sock:/var/run/docker.sock
     ports:
-      - "8081:8080"
-    command: webserver
-    networks:
-      - bigdata-net
-
-  airflow-scheduler:
-    image: apache/airflow:2.6.0
-    container_name: airflow-scheduler
-    user: "0:0" # Run as root to access docker socket
-    depends_on:
-      - postgres
-    environment:
-      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
-      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
-      - AIRFLOW__CORE__FERNET_KEY=46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho=
-      - AIRFLOW__CORE__LOAD_EXAMPLES=False
-      - _PIP_ADDITIONAL_REQUIREMENTS=apache-airflow-providers-apache-spark
-    volumes:
-      - ./airflow/dags:/opt/airflow/dags
-      - ./spark:/opt/spark-apps
-      - /var/run/docker.sock:/var/run/docker.sock
-    command: scheduler
+      - "5432:5432"
     networks:
       - bigdata-net
 
@@ -164,26 +115,66 @@ services:
       - _AIRFLOW_WWW_USER_CREATE=true
       - _AIRFLOW_WWW_USER_USERNAME=admin
       - _AIRFLOW_WWW_USER_PASSWORD=admin
-    command: version
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        airflow db init
+        airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com || true
+        echo "Airflow initialized"
     networks:
       - bigdata-net
 
-  # ----------------------------
-  # GRAFANA (Visualization)
-  # ----------------------------
+  airflow-webserver:
+    image: apache/airflow:2.6.0
+    container_name: airflow-webserver
+    depends_on:
+      - postgres
+      - airflow-init
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+      - AIRFLOW__CORE__FERNET_KEY=46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho=
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - _PIP_ADDITIONAL_REQUIREMENTS=apache-airflow-providers-apache-spark
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./spark:/opt/spark-apps
+    ports:
+      - "8081:8080"
+    command: webserver
+
+    networks:
+      - bigdata-net
+
+  airflow-scheduler:
+    image: apache/airflow:2.6.0
+    container_name: airflow-scheduler
+    depends_on:
+      - postgres
+      - airflow-init
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+      - AIRFLOW__CORE__FERNET_KEY=46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho=
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - _PIP_ADDITIONAL_REQUIREMENTS=apache-airflow-providers-apache-spark
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./spark:/opt/spark-apps
+    command: scheduler
+    networks:
+      - bigdata-net
+
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
     ports:
       - "3000:3000"
-    volumes:
-      - ./grafana:/var/lib/grafana/dashboards
     networks:
       - bigdata-net
 
-  # ----------------------------
-  # PYTHON APPS
-  # ----------------------------
+
   traffic-generator:
     build: 
       context: .

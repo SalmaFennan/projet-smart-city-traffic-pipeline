@@ -1,0 +1,10 @@
+PS C:\Users\LENOVO\Desktop\smart-city-traffic-pipeline-main> docker exec namenode hdfs dfs -count /data/raw/traffic
+          16         3897           24130155 /data/raw/traffic
+docker exec namenode hdfs dfs -ls /data/analytics/traffic
+Found 6 items
+-rw-r--r--   3 spark supergroup          0 2026-01-12 06:59 /data/analytics/traffic/_SUCCESS
+-rw-r--r--   3 spark supergroup       6955 2026-01-11 21:36 /data/analytics/traffic/part-00000-1f1d7cd9-e71f-483f-9046-ede99fd72404-c000.snappy.parquet
+-rw-r--r--   3 spark supergroup       7055 2026-01-11 22:51 /data/analytics/traffic/part-00000-a07e5cd7-a3bb-47c7-ac83-67d80773cdfc-c000.snappy.parquet
+-rw-r--r--   3 spark supergroup       9315 2026-01-12 06:59 /data/analytics/traffic/part-00000-a434bbca-ee87-4516-bdb7-ec707aaa3e56-c000.snappy.parquet
+-rw-r--r--   3 spark supergroup       2436 2026-01-10 22:48 /data/analytics/traffic/part-00000-d8b64ac3-9c59-44c3-b44d-df6c4ac4b980-c000.snappy.parquet
+-rw-r--r--   3 spark supergroup       2538 2026-01-10 22:54 /data/analytics/traffic/part-00000-f870774c-ff3a-4e66-a3cc-be84c6de247c-c000.snappy.parquet         
